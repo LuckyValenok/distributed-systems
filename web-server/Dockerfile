@@ -10,4 +10,6 @@ FROM alpine:latest
 
 COPY --from=builder /app/web-server /web-server
 
+COPY ./config.json ./config.json
+
 ENTRYPOINT ["/web-server"]
