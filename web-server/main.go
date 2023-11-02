@@ -41,18 +41,7 @@ func main() {
 	webServer := Server{
 		DB: db,
 	}
-
-	webServer.initDatabase()
 	webServer.setupRouteAndRun(fmt.Sprintf(":%v", config.Port))
-}
-
-func (s Server) initDatabase() {
-	_, _ = s.DB.Exec(`create table links
-(
-    id    serial
-        primary key,
-    value varchar not null
-);`)
 }
 
 func (s Server) setupRouteAndRun(addr string) {
