@@ -24,7 +24,7 @@ func (s Server) GetLinkHandler(c *fasthttp.RequestCtx) {
 }
 
 func (s Server) AddLinkHandler(c *fasthttp.RequestCtx) {
-	if link := c.PostArgs().Peek("link"); len(link) == 0 {
+	if link := c.FormValue("link"); len(link) == 0 {
 		c.SetStatusCode(fasthttp.StatusBadRequest)
 	} else {
 		if i, err := crud.AddLink(s.DB, string(link)); err != nil {
