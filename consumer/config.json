@@ -1,0 +1,6 @@
+{
+  "user": "user",
+  "password": "password",
+  "host": "localhost:5672",
+  "web_server": "http://localhost:8080"
+}

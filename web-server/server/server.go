@@ -1,7 +1,11 @@
 package server
 
-import "database/sql"
+import (
+	"database/sql"
+	"github.com/streadway/amqp"
+)
 
 type Server struct {
-	DB *sql.DB
+	DB       *sql.DB
+	RabbitMQ *amqp.Connection
 }

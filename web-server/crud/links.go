@@ -63,3 +63,18 @@ func AddLink(db *sql.DB, link string) (int, error) {
 	}
 	return id, nil
 }
+
+func UpdateLinkStatus(db *sql.DB, id, status int) error {
+	stmt, err := db.Prepare(`UPDATE links SET status = $1 WHERE id = $2`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(status, id)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

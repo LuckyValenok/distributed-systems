@@ -2,14 +2,15 @@ package main
 
 import (
 	"database/sql"
-	config2 "distributedsystems/config"
-	"distributedsystems/endpoints"
-	"distributedsystems/server"
 	"fmt"
 	"github.com/fasthttp/router"
 	_ "github.com/lib/pq"
 	"github.com/valyala/fasthttp"
+	config2 "internal/config"
 	"log"
+	"web-server/endpoints"
+	"web-server/rabbit"
+	"web-server/server"
 )
 
 type Config struct {
@@ -22,6 +23,12 @@ type Config struct {
 		Port     int    `json:"port"`
 		DBName   string `json:"db_name"`
 	} `json:"database"`
+
+	RabbitMQ struct {
+		Host     string `json:"host"`
+		User     string `json:"user"`
+		Password string `json:"password"`
+	} `json:"rabbit_mq"`
 }
 
 type Server server.Server
@@ -29,7 +36,7 @@ type Server server.Server
 func main() {
 	var config Config
 	if err := config2.LoadFromJson("config.json", &config); err != nil {
-		log.Fatalf("Load config from json except: %v", err)
+		log.Fatalf("Load config from json: %v", err)
 	}
 
 	connStr := fmt.Sprintf("user=%v password=%v host=%v port=%v dbname=%v sslmode=disable", config.Database.User, config.Database.Password, config.Database.Host, config.Database.Port, config.Database.DBName)
@@ -38,8 +45,15 @@ func main() {
 		log.Fatal(err)
 	}
 
+	rabbitConf := config.RabbitMQ
+	rabbitConn, err := rabbit.ConnectRabbitMQ(rabbitConf.Host, rabbitConf.User, rabbitConf.Password)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	webServer := Server{
-		DB: db,
+		DB:       db,
+		RabbitMQ: rabbitConn,
 	}
 	webServer.setupRouteAndRun(fmt.Sprintf(":%v", config.Port))
 }
@@ -48,8 +62,12 @@ func (s Server) setupRouteAndRun(addr string) {
 	r := router.New()
 
 	endpointsServer := (endpoints.Server)(s)
-	r.POST("/links", endpointsServer.AddLinkHandler)
-	r.GET("/links/{id}", endpointsServer.GetLinkHandler)
+	linksGroup := r.Group("/links")
+	{
+		linksGroup.POST("/", endpointsServer.AddLinkHandler)
+		linksGroup.GET("/{id}", endpointsServer.GetLinkHandler)
+		linksGroup.PUT("/", endpointsServer.UpdateLinkStatusHandler)
+	}
 
 	if err := fasthttp.ListenAndServe(addr, r.Handler); err != nil {
 		log.Fatalf("Listen http server except: %v", err)

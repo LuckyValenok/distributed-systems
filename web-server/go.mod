@@ -1,11 +1,12 @@
-module distributedsystems
+module web-server
 
 go 1.21
 
 require (
 	github.com/fasthttp/router v1.4.21
 	github.com/lib/pq v1.10.9
-	github.com/valyala/fasthttp v1.50.0
+	github.com/streadway/amqp v1.1.0
+	github.com/valyala/fasthttp v1.51.0
 )
 
 require (
