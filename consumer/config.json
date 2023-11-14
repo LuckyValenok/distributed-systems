@@ -2,5 +2,10 @@
   "user": "user",
   "password": "password",
   "host": "rabbitmq",
-  "web_server": "http://nginx:80"
+  "web_server": "http://nginx:80",
+  "redis": {
+    "addr": "redis:6379",
+    "password": "",
+    "db": 0
+  }
 }

@@ -2,8 +2,10 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/go-redis/redis/v8"
 	"github.com/streadway/amqp"
 	"github.com/valyala/fasthttp"
 	config2 "internal/config"
@@ -19,6 +21,12 @@ type Config struct {
 	Password string `json:"password"`
 
 	WebServer string `json:"web_server"`
+
+	Redis struct {
+		Addr     string `json:"addr"`
+		Password string `json:"password"`
+		DB       int    `json:"db"`
+	} `json:"redis"`
 }
 
 func main() {
@@ -26,6 +34,13 @@ func main() {
 	if err := config2.LoadFromJson("config.json", &config); err != nil {
 		log.Fatalf("Load config from json: %v", err)
 	}
+
+	redisCfg := config.Redis
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     redisCfg.Addr,
+		Password: redisCfg.Password,
+		DB:       redisCfg.DB,
+	})
 
 	conn, err := amqp.Dial(fmt.Sprintf("amqp://%v:%v@%v/", config.User, config.Password, config.Host))
 	if err != nil {
@@ -60,12 +75,12 @@ func main() {
 			}
 			log.Printf("Получена ссылка: %s", linkData.URL)
 
-			if status, err := makeHttpRequest(linkData.URL); err != nil {
+			if status, err := makeHttpRequest(rdb, linkData.URL); err != nil {
 				log.Printf("Ошибка при получении HTTP-статуса: %v", err)
 			} else {
 				log.Printf("HTTP-статус для %s: %d", linkData.URL, status)
 
-				updateLinkStatus(config.WebServer, linkData.ID, status)
+				updateLinkStatus(rdb, config.WebServer, linkData.ID, status)
 			}
 		}
 	}()
@@ -74,7 +89,7 @@ func main() {
 	<-forever
 }
 
-func makeHttpRequest(link string) (int, error) {
+func makeHttpRequest(rdb *redis.Client, link string) (int, error) {
 	req := fasthttp.AcquireRequest()
 	defer fasthttp.ReleaseRequest(req)
 
@@ -89,15 +104,17 @@ func makeHttpRequest(link string) (int, error) {
 		return 0, err
 	}
 
-	return res.StatusCode(), nil
+	statusCode := res.StatusCode()
+
+	err := rdb.Set(context.Background(), link, statusCode, 0).Err()
+	if err != nil {
+		log.Printf("Ошибка при сохранении статуса в Redis: %v", err)
+	}
+
+	return statusCode, nil
 }
 
-type LinkStatusUpdate struct {
-	ID     int `json:"id"`
-	Status int `json:"status"`
-}
-
-func updateLinkStatus(url string, id, status int) {
+func updateLinkStatus(rdb *redis.Client, url string, id, status int) {
 	fullURL := fmt.Sprintf("%s/links/", url)
 
 	req := fasthttp.AcquireRequest()
@@ -125,5 +142,11 @@ func updateLinkStatus(url string, id, status int) {
 		log.Fatalf("Ошибка при обновлении статуса: статус %d", resp.StatusCode())
 	} else {
 		log.Printf("Статус успешно обновлён для ID %d", id)
+	}
+
+	if err := rdb.Set(context.Background(), fmt.Sprintf("status:%d", id), status, 0).Err(); err != nil {
+		log.Fatalf("Ошибка при сохранении статуса в Redis: %s", err)
+	} else {
+		log.Printf("Статус для ID %d успешно сохранен в Redis", id)
 	}
 }
