@@ -4,12 +4,15 @@ WORKDIR /app
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o web-server .
+WORKDIR /app/web-server
 
-FROM alpine:latest  
+RUN go mod download
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o app .
 
-COPY --from=builder /app/web-server /web-server
+FROM alpine:latest
 
-COPY ./config.json ./config.json
+COPY --from=builder /app/web-server/app /app
 
-ENTRYPOINT ["/web-server"]
+COPY --from=builder /app/web-server/config.json /config.json
+
+ENTRYPOINT ["/app"]

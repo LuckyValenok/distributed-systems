@@ -3,13 +3,13 @@
   "database": {
     "user": "root",
     "password": "root",
-    "host": "localhost",
+    "host": "postgres",
     "port": 5432,
     "db_name": "dev"
   },
   "rabbit_mq": {
     "user": "user",
     "password": "password",
-    "host": "localhost:5672"
+    "host": "rabbitmq"
   }
 }

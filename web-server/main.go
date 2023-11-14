@@ -8,6 +8,7 @@ import (
 	"github.com/valyala/fasthttp"
 	config2 "internal/config"
 	"log"
+	"os"
 	"web-server/endpoints"
 	"web-server/rabbit"
 	"web-server/server"
@@ -69,7 +70,16 @@ func (s Server) setupRouteAndRun(addr string) {
 		linksGroup.PUT("/", endpointsServer.UpdateLinkStatusHandler)
 	}
 
-	if err := fasthttp.ListenAndServe(addr, r.Handler); err != nil {
+	if err := fasthttp.ListenAndServe(addr, s.applyMiddleware(r.Handler)); err != nil {
 		log.Fatalf("Listen http server except: %v", err)
+	}
+}
+
+func (s Server) applyMiddleware(h fasthttp.RequestHandler) fasthttp.RequestHandler {
+	return func(ctx *fasthttp.RequestCtx) {
+		containerLabel := os.Getenv("CONTAINER_LABEL")
+		ctx.Response.Header.Set("X-Container-Label", containerLabel)
+
+		h(ctx)
 	}
 }

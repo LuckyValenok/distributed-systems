@@ -4,12 +4,15 @@ WORKDIR /app
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o consumer .
+WORKDIR /app/consumer
 
-FROM alpine:latest  
+RUN go mod download
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o app .
 
-COPY --from=builder /app/consumer /consumer
+FROM alpine:latest
 
-COPY ./config.json ./config.json
+COPY --from=builder /app/consumer/app /app
 
-ENTRYPOINT ["/consumer"]
+COPY --from=builder /app/consumer/config.json /config.json
+
+ENTRYPOINT ["/app"]
